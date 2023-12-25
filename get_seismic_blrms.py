@@ -1,6 +1,5 @@
 # use GWpy to grab some data and save it to a file
 
-
 from gwpy.timeseries import TimeSeries, TimeSeriesDict
 from gwpy.time import tconvert
 import os
@@ -8,6 +7,7 @@ from timeit import default_timer as timer
 
 import argparse
 
+# ********** parse the input arguments 
 parser = argparse.ArgumentParser(description='save some LIGO data')
 parser.add_argument('-tstart','--start_time',
                     help     = 'Start Time UTC',
@@ -20,7 +20,7 @@ parser.add_argument('-dur','--duration',
                     default  = 1,
                     required = False)
 args = parser.parse_args()
-
+# ******************************
 
 data_dir = 'Data/'
 
@@ -29,10 +29,7 @@ if not os.path.exists(data_dir):
 
 
 # Set the GPS time of interest
-
-# UTC start time of Oct Magog test
 time_of_interest = args.start_time
-# duration of test = 1709 seconds
 
 # start the data 10 minutes before the start time of the test to get some baseline data
 t0 = tconvert(time_of_interest)
