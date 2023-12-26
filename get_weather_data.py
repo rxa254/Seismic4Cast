@@ -4,14 +4,21 @@ import argparse
 import h5py
 import datetime  # For adding a timestamp to the file name
 
-# Ethical disclaimer for data usage
-print("**Disclaimer:** Please use this data responsibly and ethically, respecting privacy and intellectual property rights.")
+
+data_dir = 'Data/'
 
 # Create an argument parser with clear descriptions and defaults
 parser = argparse.ArgumentParser(description="Download NOAA buoy data and save to HDF5")
-parser.add_argument("buoy_ids", nargs="+", help="List of NOAA buoy IDs to download data for")
-parser.add_argument("--output_file", default=f"buoy_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.hdf5",
+
+parser.add_argument("buoy_ids", nargs="+", 
+                    help = "List of NOAA buoy IDs to download data for")
+
+parser.add_argument("--output_file", 
+                    default=data_dir + f"buoy_data_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.hdf5",
                     help="Output HDF5 file name (defaults to timestamped format)")
+
+parser.add_argument("--start_time",
+                    default="something")
 
 args = parser.parse_args()
 

@@ -38,7 +38,7 @@ t0 = tconvert(time_of_interest)
 if __debug__:
     print("GPS start time = " + str(t0))
 
-# Define the duration (in seconds) and the LIGO interferometer
+# Define the duration (converting hours to seconds) and the LIGO interferometer
 dur = int(args.duration * 60 * 60)
 ifo = 'L1'  # LIGO Obs prefix
 myhost = "nds.ligo-la.caltech.edu"
@@ -58,14 +58,21 @@ for opt in opts:
 
 t_start = timer()
 # Fetch data and save it to an HDF5 file
+gwpy_verbose = False
 if __debug__:
     print(f"Fetching data for channels: {channels}")
+    gwpy_verbose = True
+
 data = TimeSeriesDict.get(channels,
-                          t0, t0 + dur, verbose=True, host=myhost)
+                          t0, 
+                          t0 + dur, 
+                          verbose = gwpy_verbose, 
+                          host = myhost)
 
 t_elapsed = timer() - t_start
 if __debug__:
     print('Elapsed time = {t:4.1f} seconds.'.format(t=t_elapsed))
+
 
 # Save the data to an HDF5 file
 output_file = f'{ifo}_seis_blrms_{time_of_interest.replace(":", "-").replace(" ", "_")}.hdf5'
