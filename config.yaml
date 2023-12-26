@@ -14,3 +14,19 @@ columns:
   - APD
   - WTMP
   
+units_map:
+  WDIR: "degrees (True)"
+  WSPD: "m/s"
+  GST: "m/s"
+  WVHT: "m"
+  DPD: "s"
+  APD: "s"
+  MWD: "degrees (True)"
+  PRES: "hPa"
+  ATMP: "°C"
+  WTMP: "°C"
+  DEWP: "°C"
+  VIS: "nmi"
+  PTDY: "hPa"
+  TIDE: "ft"
+  # Additional mappings can be added here as needed
