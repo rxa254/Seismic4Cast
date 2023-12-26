@@ -1,0 +1,9 @@
+# list of useful buoys from NDBC website
+42040
+42002
+42005
+42036
+41009
+41002
+41013
+42058
