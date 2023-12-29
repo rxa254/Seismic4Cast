@@ -1,119 +1,135 @@
 #!/usr/bin/env python3
 
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+"""
+Script Name: getNDBC.py
+Description: This script downloads and processes historical oceanographic data 
+             from the National Data Buoy Center (NDBC). It focuses on extracting 
+             data for specified buoys over a range of years, as defined in a YAML configuration file.
+
+Author: [Your Name]
+Created on: [Date Created]
+Last Modified: [Last Modification Date]
+
+Usage:
+    Run the script with a YAML configuration file:
+    python3 getNDBC.py --config_file config.yaml --start_year 2017 --end_year 2022
+    Or run without specifying a config file to use the default 'config.yaml':
+    python3 getNDBC.py --start_year 2017 --end_year 2022
+
+Dependencies:
+    Requires Python 3 and the following libraries: 
+    - requests
+    - pandas
+    - argparse
+    - pyyaml
+"""
+
+import requests
 import pandas as pd
-import numpy as np
+import io
 import os
-import glob
 import argparse
 import yaml
 
-# Default data directory
 data_dir = 'Data/'
 
+def download_ndbc_historical_data(buoy_id, year):
+    """
+    Download historical data for a specific buoy and year from NDBC.
+
+    Args:
+    - buoy_id (str): Buoy ID.
+    - year (int): Year of data.
+
+    Returns:
+    - str: Decoded content of the data file.
+    """
+    url = f"https://www.ndbc.noaa.gov/view_text_file.php?filename={buoy_id}h{year}.txt.gz&dir=data/historical/stdmet/"
+    response = requests.get(url)
+    if response.status_code != 200:
+        print(f"Failed to retrieve data for buoy {buoy_id} for {year}")
+        return None
+    return response.content.decode('utf-8')
+
+def parse_data_to_dict(data, columns, months=list(range(1, 12 + 1))):
+    """
+    Parse data string to a DataFrame.
+
+    Args:
+    - data (str): Data string from NDBC.
+    - columns (list): List of columns to include.
+    - months (list): List of months to include in the data.
+
+    Returns:
+    - DataFrame: Parsed data.
+    """
+    df = pd.read_fwf(io.StringIO(data), skiprows=[1], header=0)
+    df_filtered = df[df['MM'].isin(months)].copy()
+
+    required_columns = ['#YY', 'MM', 'DD', 'hh', 'mm'] + columns
+    for column in required_columns:
+        if column in df.columns:
+            df_filtered.loc[:, column] = df_filtered[column].astype(str).str.zfill(2)
+
+    df_filtered['timestamp'] = pd.to_datetime(df_filtered[['#YY', 'MM', 'DD', 'hh', 'mm']].agg(''.join, axis=1), format='%Y%m%d%H%M')
+    return df_filtered[['timestamp'] + columns]
+
+def save_data(df, buoy_id, year):
+    """
+    Save data to a Pickle file.
+
+    Args:
+    - df (DataFrame): Data to save.
+    - buoy_id (str): Buoy ID.
+    - year (int): Year of data.
+    """
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    filename_pickle = os.path.join(data_dir, f'BuoyData_{buoy_id}_{year}.pkl')
+    df.to_pickle(filename_pickle, compression='gzip')
+
 def load_config(config_file):
+    """
+    Load configuration from a YAML file.
+
+    Args:
+    - config_file (str): YAML configuration file path.
+
+    Returns:
+    - dict: Configuration data.
+    """
     with open(config_file, 'r') as file:
-        return yaml.safe_load(file)
+        config = yaml.safe_load(file)
+    return config
 
-def find_pickle_files(directory):
-    return glob.glob(os.path.join(directory, '*.pkl'))
+def main(config_file, start_year, end_year):
+    """
+    Main function of the script.
 
-def load_pickle_data(filename):
-    df = pd.read_pickle(filename, compression='gzip')
-    for col in df.columns:
-        if col != 'timestamp':
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    return df
-
-def filter_data(df, column):
-    return df[df[column] <= 90]
-
-def determine_y_scales(pickle_files, units_map):
-    global_max = {}
-    global_min = {}
-    for pickle_file in pickle_files:
-        df = load_pickle_data(pickle_file)
-        for column in units_map.keys():
-            if column in df.columns:
-                filtered_df = filter_data(df, column)
-                max_val = filtered_df[column].max()
-                min_val = filtered_df[column].min()
-                global_max[column] = max(global_max.get(column, -np.inf), max_val)
-                global_min[column] = min(global_min.get(column, np.inf), min_val)
-    return global_max, global_min
-
-def plot_individual_data(pickle_files, pdf, y_scales, units_map):
-    global_max, global_min = y_scales
-    for pickle_file in pickle_files:
-        df = load_pickle_data(pickle_file)
-        buoy_id = os.path.basename(pickle_file).split('_')[1]
-        plt.style.use('seaborn')
-        columns_to_plot = [col for col in df.columns if col != 'timestamp']
-        num_plots = len(columns_to_plot)
-
-        fig, axes = plt.subplots(num_plots, 1, figsize=(10, 6*num_plots), sharex=True)
-
-        for i, column in enumerate(columns_to_plot):
-            ax = axes[i] if num_plots > 1 else axes
-            filtered_data = filter_data(df, column)
-            unit = units_map.get(column, "Unknown Unit")
-            ax.plot(filtered_data['timestamp'], filtered_data[column], label=f"{column} over Time")
-            ax.set_ylabel(f"{column} ({unit})")
-            ax.legend()
-
-            if column in global_max and column in global_min:
-                ax.set_ylim(global_min[column], global_max[column])
-
-        plt.xlabel('Time')
-        plt.suptitle(f'Meteorological Data Analysis for Buoy {buoy_id}')
-        pdf.savefig(fig, bbox_inches='tight')
-        plt.close(fig)
-
-def plot_overlayed_data(pickle_files, pdf, units_map):
-    all_data = {}
-    for pickle_file in pickle_files:
-        buoy_id = os.path.basename(pickle_file).split('_')[1]
-        df = load_pickle_data(pickle_file)
-        for column in df.columns:
-            if column != 'timestamp':
-                filtered_data = filter_data(df, column)
-                if column not in all_data:
-                    all_data[column] = {}
-                all_data[column][buoy_id] = filtered_data[['timestamp', column]]
-
-    for column, data in all_data.items():
-        fig, ax = plt.subplots(figsize=(10, 6))
-        for buoy_id, df in data.items():
-            ax.plot(df['timestamp'], df[column], label=f"Buoy {buoy_id}")
-        ax.set_ylabel(f"{column} ({units_map.get(column, 'Unknown Unit')})")
-        ax.legend()
-        plt.xlabel('Time')
-        plt.title(f'{column} Data from Multiple Buoys')
-        pdf.savefig(fig, bbox_inches='tight')
-        plt.close(fig)
-
-def main(directory, overlay, config_file):
+    Args:
+    - config_file (str): YAML configuration file path.
+    - start_year (int): Start year for data retrieval.
+    - end_year (int): End year for data retrieval.
+    """
     config = load_config(config_file)
-    units_map = config['units_map']
+    buoy_ids = config['buoys']
+    columns = config['columns']
 
-    figures_directory = 'Figures'
-    os.makedirs(figures_directory, exist_ok=True)
-    pdf_path = os.path.join(figures_directory, 'buoy_data_plots.pdf')
-    
-    pickle_files = find_pickle_files(directory)
-    with PdfPages(pdf_path) as pdf:
-        if overlay:
-            plot_overlayed_data(pickle_files, pdf, units_map)
-        else:
-            y_scales = determine_y_scales(pickle_files, units_map)
-            plot_individual_data(pickle_files, pdf, y_scales, units_map)
+    for year in range(start_year, end_year + 1):
+        for buoy_id in buoy_ids:
+            data = download_ndbc_historical_data(buoy_id, year)
+            if data:
+                df = parse_data_to_dict(data, columns)
+                save_data(df, buoy_id, year)
+                print(f"Data processed and saved for buoy {buoy_id} for {year}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Plot NDBC buoy data.")
-    parser.add_argument("directory", type=str, nargs='?', default=data_dir, help="Directory containing Pickle files. Default is 'Data/'.")
-    parser.add_argument("--overlay", action='store_true', help="Overlay data from all buoys on single plots.")
-    parser.add_argument("--config", type=str, default="config.yaml", help="Path to the configuration YAML file. Default is 'config.yaml'.")
+    parser = argparse.ArgumentParser(description="Download and process NDBC buoy data.")
+    parser.add_argument("--config_file", type=str, default='config.yaml',
+                        help="YAML configuration file. Default is 'config.yaml'.")
+    parser.add_argument("--start_year", type=int, default=2017, 
+                        help="Start year for the data retrieval. Default is 2017.")
+    parser.add_argument("--end_year", type=int, default=2022, 
+                        help="End year for the data retrieval. Default is 2022.")
     args = parser.parse_args()
-
-    main(args.directory, args.overlay, args.config)
+    main(args.config_file, args.start_year, args.end_year)
