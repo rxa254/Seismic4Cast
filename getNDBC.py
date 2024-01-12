@@ -1,20 +1,36 @@
 #!/usr/bin/env python3
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     formats: ipynb,py:light
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
 
+# # Get some data from NBDC (National Buoy Data Center)
 """
 Script Name: getNDBC.py
 Description: This script downloads and processes historical oceanographic data 
              from the National Data Buoy Center (NDBC). It focuses on extracting 
              data for specified buoys over a range of years, as defined in a YAML configuration file.
 
-Author: [Your Name]
-Created on: [Date Created]
-Last Modified: [Last Modification Date]
+Author: Rana X Adhikari
+Created on: 28-Dec-2023
+
 
 Usage:
     Run the script with a YAML configuration file:
-    python3 getNDBC.py --config_file config.yaml --start_year 2017 --end_year 2022
+    python getNDBC.py --config_file config.yaml --start_year 2017 --end_year 2022
     Or run without specifying a config file to use the default 'config.yaml':
-    python3 getNDBC.py --start_year 2017 --end_year 2022
+    python getNDBC.py --start_year 2017 --end_year 2022
 
 Dependencies:
     Requires Python 3 and the following libraries: 
@@ -51,9 +67,10 @@ def download_ndbc_historical_data(buoy_id, year):
         return None
     return response.content.decode('utf-8')
 
+
 def parse_data_to_dict(data, columns, months=list(range(1, 12 + 1))):
     """
-    Parse data string to a DataFrame.
+    Parse data string to a DataFrame. Convenient data format for manipulations.
 
     Args:
     - data (str): Data string from NDBC.
@@ -71,8 +88,11 @@ def parse_data_to_dict(data, columns, months=list(range(1, 12 + 1))):
         if column in df.columns:
             df_filtered.loc[:, column] = df_filtered[column].astype(str).str.zfill(2)
 
-    df_filtered['timestamp'] = pd.to_datetime(df_filtered[['#YY', 'MM', 'DD', 'hh', 'mm']].agg(''.join, axis=1), format='%Y%m%d%H%M')
+    df_filtered['timestamp'] = pd.to_datetime(df_filtered[[
+        '#YY', 'MM', 'DD', 'hh', 'mm']].agg(''.join, axis=1),
+                                              format='%Y%m%d%H%M')
     return df_filtered[['timestamp'] + columns]
+
 
 def save_data(df, buoy_id, year):
     """
@@ -87,6 +107,7 @@ def save_data(df, buoy_id, year):
         os.makedirs(data_dir)
     filename_pickle = os.path.join(data_dir, f'BuoyData_{buoy_id}_{year}.pkl')
     df.to_pickle(filename_pickle, compression='gzip')
+    
 
 def load_config(config_file):
     """
@@ -102,6 +123,7 @@ def load_config(config_file):
         config = yaml.safe_load(file)
     return config
 
+
 def main(config_file, start_year, end_year):
     """
     Main function of the script.
@@ -115,6 +137,7 @@ def main(config_file, start_year, end_year):
     buoy_ids = config['buoys']
     columns = config['columns']
 
+    # this is kind of dumb - why not save all the data in one file?
     for year in range(start_year, end_year + 1):
         for buoy_id in buoy_ids:
             data = download_ndbc_historical_data(buoy_id, year)
@@ -123,6 +146,8 @@ def main(config_file, start_year, end_year):
                 save_data(df, buoy_id, year)
                 print(f"Data processed and saved for buoy {buoy_id} for {year}")
 
+
+# this is what runs if your run it from the command line instead of as a library import
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and process NDBC buoy data.")
     parser.add_argument("--config_file", type=str, default='config.yaml',
@@ -133,3 +158,7 @@ if __name__ == "__main__":
                         help="End year for the data retrieval. Default is 2022.")
     args = parser.parse_args()
     main(args.config_file, args.start_year, args.end_year)
+
+
+
+

@@ -1,19 +1,23 @@
+---
 buoys:
-  - 42040
-  - 42002
- # - 42005
-  - 42036
-  - 41009
-  - 41002
-  - 41013
- # - 42058
+  - 41002 # US-SE
+  - 41004 # US-SE
+  - 41008 # US-SE
+  - 41009 # US-SE / east of Cocoa Beach
+  - 41013 # US-SE
+  - 41047 # US-SE
+  - 42002 # West Gulf - 200 m east of Brownsville
+  - 42019 # West Gulf
+  - 42036 # East Gulf
+  - 42040 # East Gulf
+  - 42055 # Mexico Basin
 
 columns:
   - WVHT
   - DPD
   - APD
   - WTMP
-  
+ 
 units_map:
   WDIR: "degrees (True)"
   WSPD: "m/s"
@@ -29,4 +33,4 @@ units_map:
   VIS: "nmi"
   PTDY: "hPa"
   TIDE: "ft"
-  # Additional mappings can be added here as needed
+# Additional mappings can be added here as needed
